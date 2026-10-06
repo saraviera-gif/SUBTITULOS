@@ -4,7 +4,10 @@
 Ejecutar siempre con el entorno del proyecto: `.venv/bin/python revisar.py "<enlace>" [--prueba MIN]`.
 Deja todo en `trabajos/<vídeo>/`. La revisión la hace Claude Code (sin APIs de pago).
 
-## Flujo cuando el usuario pega un enlace de Dropbox
+## Flujo cuando el usuario pega un enlace de Dropbox (o la ruta de un vídeo de su ordenador)
+
+En lugar del enlace se puede pasar la ruta de un archivo de vídeo local (p. ej. arrastrado a la conversación):
+`.venv/bin/python revisar.py "/ruta/al/video.mp4" [--prueba MIN]`. El resto del flujo es igual.
 
 1. Si no existe `.venv/`, ejecuta `./instalar.command` (o pide al usuario que haga doble clic en él).
 2. Lanza el script **en segundo plano** (tarda: descarga de GB, transcripción, OCR) y redirige la salida a

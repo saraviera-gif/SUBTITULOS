@@ -142,13 +142,28 @@ def descargar(url_dl, destino):
     parcial.replace(destino)
 
 
+def usar_archivo_local(origen, destino, minutos):
+    """Vídeo que ya está en el ordenador: se enlaza (o se copia) en la carpeta de trabajo."""
+    if destino.exists():
+        print(f"  Ya preparado: {destino.name}")
+        return
+    if minutos:
+        descargar_prueba(str(origen), destino, minutos)
+        return
+    try:
+        destino.symlink_to(origen)
+    except OSError:
+        print("  Copiando el vídeo…")
+        shutil.copy2(origen, destino)
+
+
 def descargar_prueba(url_dl, destino, minutos):
     """Copia solo los primeros N minutos directamente desde el enlace (sin bajar el archivo entero)."""
     if destino.exists():
         print(f"  Ya descargado: {destino.name}")
         return
     tmp = destino.with_suffix(".tmp" + destino.suffix)
-    print(f"  Copiando los primeros {minutos} min desde Dropbox…")
+    print(f"  Copiando los primeros {minutos} min…")
     cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-stats", "-y", "-i", url_dl,
            "-t", str(minutos * 60), "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", str(tmp)]
     if subprocess.run(cmd).returncode != 0:
@@ -790,8 +805,9 @@ let v=document.getElementById('v');
 // Dentro de la página de Claude (claude.ai) el vídeo de Dropbox no se puede cargar: se ofrece abrirlo aparte.
 const EN_CLAUDE=!!window.claude;
 function sinVideo(){if(!v)return;const r=v.parentNode;v=null;
-  r.innerHTML='<div class="sin-video">El vídeo no se puede reproducir aquí. <a href="'+INFO.url.replace(/&?raw=1/,'')+
-  '" target="_blank" rel="noopener">Abrir el vídeo en Dropbox</a> y buscar el minuto a mano.</div>';}
+  r.innerHTML='<div class="sin-video">El vídeo no se puede reproducir aquí.'+(/^https?:/.test(INFO.url)?
+  ' <a href="'+INFO.url.replace(/&?raw=1/,'')+'" target="_blank" rel="noopener">Abrir el vídeo en Dropbox</a> y buscar el minuto a mano.':
+  ' Ábrelo desde tu ordenador y busca el minuto a mano.')+'</div>';}
 if(v){v.addEventListener('error',sinVideo);if(EN_CLAUDE)sinVideo();}
 const CLAVE='revision-subtitulos:'+INFO.clave;
 let estado={};try{estado=JSON.parse(localStorage.getItem(CLAVE))||{}}catch(e){}
@@ -848,7 +864,7 @@ function bytesDe(img){const b=atob(img.src.split(',')[1]),u=new Uint8Array(b.len
 document.getElementById('a-word').onclick=()=>{const sel=seleccion();
   aplicar(s=>{s.editor=true;s.descartado=false;});
   const datos=crearDocx({titulo:INFO.titulo,subtitulo:sel.length+(sel.length===1?' cambio':' cambios')+' para el editor · '+
-    new Date().toLocaleDateString('es-ES'),enlace:INFO.url,filas:sel.map(r=>{const img=r.querySelector('img.cap');return{
+    new Date().toLocaleDateString('es-ES'),enlace:/^https?:/.test(INFO.url)?INFO.url:'',filas:sel.map(r=>{const img=r.querySelector('img.cap');return{
       minuto:r.querySelector('a.min').textContent,imagen:{bytes:bytesDe(img),ancho:img.naturalWidth,alto:img.naturalHeight},
       actual:r.querySelector('.actual').innerText,correccion:r.querySelector('.corr').innerText,
       tipo:r.querySelector('.tipo').textContent,explicacion:r.querySelector('.expl').innerText};})});
@@ -983,8 +999,8 @@ def html_a_pdf(origen, destino):
 # --------------------------------------------------------------------------- principal
 
 def main():
-    ap = argparse.ArgumentParser(description="Revisa subtítulos quemados de un vídeo de Dropbox.")
-    ap.add_argument("enlace", help="Enlace de Dropbox al vídeo")
+    ap = argparse.ArgumentParser(description="Revisa subtítulos quemados de un vídeo (Dropbox o archivo local).")
+    ap.add_argument("enlace", help="Enlace de Dropbox al vídeo, o ruta del archivo de vídeo en el ordenador")
     ap.add_argument("--zona", help="Franja de subtítulos 'inicio,fin' en fracción de la altura (0.80,0.96) o en píxeles")
     ap.add_argument("--fps", type=float, default=3, help="Fotogramas por segundo a analizar (defecto 3)")
     ap.add_argument("--motor", default="auto", choices=["auto", "mlx", "faster-whisper", "openai"],
@@ -995,8 +1011,16 @@ def main():
                     help="Borra y repite estos pasos")
     args = ap.parse_args()
 
-    url_dl, url_raw = enlaces_dropbox(args.enlace)
-    nombre = nombre_desde_url(args.enlace)
+    local = Path(args.enlace.strip().strip("'\"")).expanduser()
+    if local.is_file():
+        local = local.resolve()
+        nombre = re.sub(r"[^\w.\- ]+", "_", local.name)
+        url_dl = None
+        url_raw = "video" + (local.suffix or ".mp4")  # el informe está en la misma carpeta que el vídeo
+    else:
+        local = None
+        url_dl, url_raw = enlaces_dropbox(args.enlace)
+        nombre = nombre_desde_url(args.enlace)
     base = Path(nombre).stem + (f"__prueba_{args.prueba:g}min" if args.prueba else "")
     carpeta = TRABAJOS / base
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -1020,7 +1044,9 @@ def main():
 
     video = carpeta / ("video" + (Path(nombre).suffix or ".mp4"))
     info("1/4 Descarga")
-    if args.prueba:
+    if local:
+        usar_archivo_local(local, video, args.prueba)
+    elif args.prueba:
         descargar_prueba(url_dl, video, args.prueba)
     else:
         descargar(url_dl, video)
