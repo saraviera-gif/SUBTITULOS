@@ -37,6 +37,9 @@ Puedes ver un ejemplo abriendo `ejemplo_informe.html`.
    En un vídeo de ~45 min el proceso automático tarda unos 20–30 min más la descarga, y la revisión
    de Claude un rato más.
 4. El enlace de Dropbox tiene que ser **público** y apuntar al **archivo de vídeo** (no a una carpeta).
+5. Si el vídeo está en tu ordenador, no hace falta subirlo a Dropbox: **arrastra el archivo** a la
+   conversación de Claude Code (o escribe dónde está) y pídele «Revisa los subtítulos de este vídeo».
+   En ese caso el informe reproduce el vídeo desde tu ordenador, así que no lo muevas ni lo borres.
 
 ## Usar el informe
 
