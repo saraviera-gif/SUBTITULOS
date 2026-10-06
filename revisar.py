@@ -769,6 +769,7 @@ background:var(--ink);color:#fff;padding:10px 28px;box-shadow:0 -4px 16px rgba(0
 .acciones .sep{flex:1}
 tr.activa td{background:#fff8db}
 .oculto{display:none}
+.sin-video{color:#fff;padding:14px 20px;font-size:14px}.sin-video a{color:#8ab4ff}
 .vacio{padding:30px;text-align:center;color:var(--muted)}
 @media screen and (max-width:760px){header,.resumen,.barra,.ayuda,.tabla,.acciones{padding-left:12px;padding-right:12px}
 table,thead,tbody,tr,td{display:block}thead{display:none}tr{border-bottom:1px solid var(--line)}td{border:0;padding:6px 10px}}
@@ -785,7 +786,13 @@ tr{page-break-inside:avoid}a.min{color:var(--acc)}
 """
 
 JS_INFORME = """
-const v=document.getElementById('v');
+let v=document.getElementById('v');
+// Dentro de la página de Claude (claude.ai) el vídeo de Dropbox no se puede cargar: se ofrece abrirlo aparte.
+const EN_CLAUDE=!!window.claude;
+function sinVideo(){if(!v)return;const r=v.parentNode;v=null;
+  r.innerHTML='<div class="sin-video">El vídeo no se puede reproducir aquí. <a href="'+INFO.url.replace(/&?raw=1/,'')+
+  '" target="_blank" rel="noopener">Abrir el vídeo en Dropbox</a> y buscar el minuto a mano.</div>';}
+if(v){v.addEventListener('error',sinVideo);if(EN_CLAUDE)sinVideo();}
 const CLAVE='revision-subtitulos:'+INFO.clave;
 let estado={};try{estado=JSON.parse(localStorage.getItem(CLAVE))||{}}catch(e){}
 const guardar=()=>{try{localStorage.setItem(CLAVE,JSON.stringify(estado))}catch(e){}};
@@ -832,7 +839,9 @@ document.getElementById('a-descartar').onclick=()=>{aplicar(s=>{s.descartado=tru
 document.getElementById('a-restaurar').onclick=()=>{aplicar(s=>{s.descartado=false;});limpiar();};
 function limpiar(){filas.forEach(r=>seleccionar(r,false));barra();}
 document.getElementById('a-limpiar').onclick=limpiar;
-document.getElementById('reiniciar').onclick=()=>{if(!confirm('¿Volver a la selección y los textos originales?'))return;
+document.getElementById('reiniciar').onclick=e=>{const b=e.target;
+  if(!b.dataset.seguro){b.dataset.seguro='1';b.textContent='¿Seguro? Pulsa otra vez';
+    setTimeout(()=>{delete b.dataset.seguro;b.textContent='Reiniciar';},4000);return;}
   estado={};guardar();location.reload();};
 function bytesDe(img){const b=atob(img.src.split(',')[1]),u=new Uint8Array(b.length);
   for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
@@ -843,12 +852,16 @@ document.getElementById('a-word').onclick=()=>{const sel=seleccion();
       minuto:r.querySelector('a.min').textContent,imagen:{bytes:bytesDe(img),ancho:img.naturalWidth,alto:img.naturalHeight},
       actual:r.querySelector('.actual').innerText,correccion:r.querySelector('.corr').innerText,
       tipo:r.querySelector('.tipo').textContent,explicacion:r.querySelector('.expl').innerText};})});
+  const nombre=INFO.archivo+'_para_editor.docx';
+  if(EN_CLAUDE){window.claude.use('downloads').then(d=>{if(!d){alert('No se puede descargar desde esta vista.');return;}
+    d.save({filename:nombre,data:datos}).catch(e=>{if(e&&e.code!=='declined')console.warn(e);});});return;}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([datos],
     {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
-  a.download=INFO.archivo+'_para_editor.docx';document.body.appendChild(a);a.click();
+  a.download=nombre;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);};
 document.getElementById('a-pdf').onclick=()=>{aplicar(s=>{s.editor=true;s.descartado=false;});
   document.body.classList.add('imprimir-sel');window.print();document.body.classList.remove('imprimir-sel');};
+if(EN_CLAUDE)document.getElementById('a-pdf').style.display='none';
 contar();visibilidad();
 """
 

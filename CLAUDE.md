@@ -12,8 +12,13 @@ Deja todo en `trabajos/<vídeo>/`. La revisión la hace Claude Code (sin APIs de
    Usa `--prueba 3` si el usuario pide una prueba. Ve informando de cada fase (líneas `▶` del log).
 3. Cuando termine, abre `zona_preview.jpg` y comprueba que el recuadro rojo cubre los subtítulos; si no,
    repite con `--zona INICIO,FIN` (fracciones de la altura).
-4. Haz la revisión (sección siguiente), escribe `fallos.json`, genera el informe con `--informe` y dile al
-   usuario la ruta de `informe_revision.html` y del PDF, con un resumen de fallos por tipo.
+4. Haz la revisión (sección siguiente), escribe `fallos.json`, genera el informe con `--informe` y
+   **publica `informe_revision.html` como Artifact** (herramienta Artifact, `capabilities: {downloads: true}`
+   para que funcione el botón de Word; icono `video`). Dale al usuario **la URL del Artifact** para ver los
+   resultados en esa página (igual que `ejemplo_informe.html`), con un resumen de fallos por tipo. Si se
+   vuelve a generar el informe del mismo vídeo, publica el mismo archivo para mantener la URL. Dentro de
+   Claude el vídeo de Dropbox no se reproduce: la página ofrece un enlace para abrirlo aparte. Menciona
+   también la ruta del PDF.
 
 El usuario no tiene por qué saber programar: explica en lenguaje sencillo y no le pidas que ejecute comandos.
 
@@ -55,5 +60,5 @@ El usuario no tiene por qué saber programar: explica en lenguaje sencillo y no 
    `texto_actual` debe ser el texto real de la captura (corregido si el OCR falló). Explicaciones breves.
    En vídeos largos, ve añadiendo fallos al archivo tras cada bloque para no perder trabajo.
 5. Genera el informe: `.venv/bin/python revisar.py "<enlace>" [--prueba MIN] --informe`
-   (crea `informe_revision.html` y `informe_revision.pdf`). En el HTML el usuario selecciona fallos y
+   (crea `informe_revision.html` y `informe_revision.pdf`) y publícalo como Artifact (paso 4 del flujo). En el HTML el usuario selecciona fallos y
    los descarta o los exporta a Word/PDF para el editor; el PDF automático excluye los `dudoso`.
